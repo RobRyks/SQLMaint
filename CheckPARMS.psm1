@@ -26,19 +26,20 @@
 $error.clear()
 
 
-write-host $servername
-
-
-If ($servername.Length -gt 1) {
-    Write-Host "Servername Parameter Eroor"
-    $error.Add("Servername Parameter Error")
 
 
 
+If ($servername.Length -lt 1) {
+    #Write-Host "Servername Parameter Error"
+    $error.Add("Servername Parameter Error") | Out-Null
+}
+
+$ValidPath = Test-Path $Bkupdir -IsValid
+If ($ValidPath -eq $False) {
+    #Write-Host "Backup DIR path is not usable"
+    $error.Add("Backup DIR path $Bkupdir is not usable") |Out-Null
 }
 
 return $error
-
-
 
 }

@@ -1,19 +1,20 @@
-﻿$scriptdir = 'C:\SCRIPTS'
+﻿#$scriptdir = 'C:\SCRIPTS'
 
-if ((resolve-path .\).path.ToUpper() -ne $scriptdir) {
-    Write-host 'This program must be run from the designated Scripts directory ' -ForegroundColor Red
-    Write-host 'C:\Scripts ' -ForegroundColor Red
-    if (test-path $scriptdir) {
-        Write-host 'changing directory to' $scriptdir  -ForegroundColor Red
-        Set-Location $scriptdir
-    }
-    else {
-        Write-host 'but the directory '$scriptdir' Does not exist!' -ForegroundColor Red
-        Write-host 'Cannot continue' -ForegroundColor Red
-        Exit 1
-    }
-}
-Write-host 'Reading modules'
+#if ((resolve-path .\).path.ToUpper() -ne $scriptdir) {
+#    Write-host 'This program must be run from the designated Scripts directory ' -ForegroundColor Red
+#    Write-host 'C:\Scripts ' -ForegroundColor Red
+#    if (test-path $scriptdir) {
+#        Write-host 'changing directory to' $scriptdir  -ForegroundColor Red
+#        Set-Location $scriptdir
+#    }
+#    else {
+#        Write-host 'but the directory '$scriptdir' Does not exist!' -ForegroundColor Red
+#        Write-host 'Cannot continue' -ForegroundColor Red
+#        Exit 1
+#    }
+#}
+Push-Location
+# Write-host 'Reading modules'
 import-module .\CheckPARMS.psm1 -force
 import-module .\get-Exceldata.psm1 -force
 import-module .\OptUserDB.psm1 -force
@@ -21,9 +22,15 @@ import-module .\ChkUserDB.psm1 -force
 import-module .\ChkSYSDB.psm1 -force
 import-module .\BkupUserDBFull.psm1 -force
 import-module .\BkupSYSDBFull.psm1 -force
+import-module .\BkupUserDBFDiff.psm1 -force
 import-module .\Cleanup.psm1 -force
 
+# assumes running directly on the database server as a user that has both 
+# server admin rights and SA level authority using integrated authentication.
+# Adust $servername to effect a remote server
 
+# Adjust the alues below to determine locations, times ,etc.
+# set 'day' to zero to skip.
 $servername = $env:COMPUTERNAME
 $Bkupdir = "E:\backup"
 $OptUserDBDay  = 1
@@ -32,13 +39,13 @@ $ChkUserDBDay  = 1
 $ChkUserDBTime = [timespan]"03:00:00"
 $ChkSysDBDay   = 1
 $ChkSysDBTime  = [timespan]"04:00:00"
-$BkupUserDBFullDay = 1            #0 = Skip 
+$BkupUserDBFullDay = 0            #0 = Skip 
 $BkupUserDBFullTime = [timespan]"22:00:00"
 $BkupUserDBFullDel =504           # Hours
 $BkupUserDBDiffDay = 0            #0 = Skip 
 $BkupUserDBDiffTime = [timespan]"22:00:00"
 $BkupUserDBDiffDel =504           # Hours
-$BkupSysDBFullDay = 1           #0 = Skip
+$BkupSysDBFullDay = 0           #0 = Skip
 $BkupSysDBFullTime = [timespan]"20:00:00"   
 $BkupSysDBFullDel = 504           # Hours
 $CleanupDay = 64
@@ -56,10 +63,18 @@ if (-not(Get-Module -name 'SQLPS')) {
     }
  }
 
-Write-host $servername
-CheckPARMS $servername $Bkupdir $OptUserDBDay $OptUserDBTime $ChkUserDBDay $ChkUserDBTime $ChkSysDBDay $ChkSysDBTime `
+
+$pcheck = CheckPARMS $servername $Bkupdir $OptUserDBDay $OptUserDBTime $ChkUserDBDay $ChkUserDBTime $ChkSysDBDay $ChkSysDBTime `
            $BkupUserDBFullDay $BkupUserDBFullTime $BkupUserDBFullDel $BkupUserDBDiffDay $BkupUserDBDiffTime $BkupUserDBDiffDel `
            $BkupSysDBFullDay $BkupSysDBFullTime $BkupSysDBFullDel $CleanupDay $CleanupTime $CleanupPeriod
+
+
+if ($pcheck.Count -gt 0) {
+    write-host "Error:"  $pcheck
+    write-host "fix errors and rerun this program"
+    exit
+}
+
           
 push-location
 $instances = dir ("sqlserver:\sql\"+$servername)
